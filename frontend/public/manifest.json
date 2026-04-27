@@ -1,0 +1,22 @@
+{
+    "name": "Private PI - OSINT System",
+    "short_name": "Private PI",
+    "description": "Integrated OSINT Intelligence Dashboard",
+    "start_url": "/dashboard",
+    "display": "standalone",
+    "background_color": "#050a06",
+    "theme_color": "#06f943",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/favicon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/favicon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

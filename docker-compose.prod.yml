@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # AUTO-UPDATER
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 30 --cleanup
+    restart: unless-stopped
+
+  nginx:
+    image: coder69ops/private_pi-nginx:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+    restart: always
+
+  web:
+    image: coder69ops/zerotrace:latest
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/private_pi
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - docker_scans:/app/scans
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  db:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: private_pi
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d private_pi" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    restart: always
+
+  celery_worker:
+    image: coder69ops/zerotrace:latest
+    restart: always
+    command: celery -A app.tasks worker --loglevel=info --concurrency=1
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/private_pi
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - docker_scans:/app/scans
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  celery_beat:
+    image: coder69ops/zerotrace:latest
+    restart: always
+    command: celery -A app.tasks beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/private_pi
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
+  docker_scans:

@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  nginx:
+    build: ./nginx
+    restart: unless-stopped
+    depends_on:
+      - web
+    # We expose port 80 to the internal Docker network.
+    # Coolify's proxy (Traefik/Caddy) will automatically route your custom domain to this port.
+    ports:
+      - "80"
+
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      # Coolify automatically injects these from the Environment Variables tab
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - docker_scans:/app/scans
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  celery_worker:
+    build: .
+    restart: unless-stopped
+    command: celery -A app.tasks worker --loglevel=info --concurrency=1
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - docker_scans:/app/scans
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  celery_beat:
+    build: .
+    restart: unless-stopped
+    command: celery -A app.tasks beat --loglevel=info
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  db:
+    image: postgres:13
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-private_pi}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-user} -d $${POSTGRES_DB:-private_pi}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  docker_scans:

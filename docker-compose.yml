@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: private_pi
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+      - scan_data:/app/scans
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - db
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DATABASE_URL=postgresql://user:password@db:5432/private_pi
+
+  worker:
+    build: .
+    command: celery -A app.tasks worker --loglevel=info
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock # Crucial: Access to host Docker
+      - scan_data:/app/scans
+    depends_on:
+      - redis
+      - db
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DATABASE_URL=postgresql://user:password@db:5432/private_pi
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - web
+
+  frontend:
+    build: ./frontend
+    # Expose for nginx, map to host for dev debug if needed, but 80 is primary
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - web
+    environment:
+      - CHOKIDAR_USEPOLLING=true # Fix for hot reload in some docker envs
+
+      - CHOKIDAR_USEPOLLING=true # Fix for hot reload in some docker envs
+
+volumes:
+  postgres_data:
+  scan_data:
