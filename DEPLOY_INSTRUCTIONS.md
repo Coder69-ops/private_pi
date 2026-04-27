@@ -87,3 +87,16 @@ Go to the **Environment Variables** tab for your new resource in Coolify and add
 Hit the **Deploy** button! Coolify handles the multi-stage Docker builds natively from the source and protects the whole stack via its Traefik proxy. 
 
 *Note: Since the app mounts the Docker socket (`/var/run/docker.sock`) to spawn scan containers via Celery workers, ensure your Coolify server's Docker daemon permits socket mounting (it is allowed by default in standard Coolify setups). Watchtower isn't needed here because Coolify has native webhook pipelines for autodeploys!*
+
+### (Firebase Setup)
+Since your React Frontend uses Firebase and compiles it via Docker at build-time, you MUST set the following Environment Variables in the **Environment Variables** tab of your Coolify Project BEFORE you click deploy:
+
+- VITE_FIREBASE_API_KEY
+- VITE_FIREBASE_AUTH_DOMAIN
+- VITE_FIREBASE_PROJECT_ID
+- VITE_FIREBASE_STORAGE_BUCKET
+- VITE_FIREBASE_MESSAGING_SENDER_ID
+- VITE_FIREBASE_APP_ID
+- VITE_FIREBASE_MEASUREMENT_ID
+
+You can grab these from your Google/Firebase Console!
