@@ -2,8 +2,6 @@ services:
   redis:
     image: redis:7-alpine
     container_name: privatepi_redis_dev
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -21,8 +19,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -40,8 +36,8 @@ services:
     volumes:
       - .:/app
       - scan_data:/app/scans
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
@@ -80,36 +76,8 @@ services:
       - privatepi
     restart: unless-stopped
 
-  nginx:
-    image: nginx:1.25-alpine
-    container_name: privatepi_nginx_dev
-    expose:
-      - "80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - frontend
-      - web
-    networks:
-      - privatepi
-    restart: unless-stopped
-
-  frontend:
-    build: ./frontend
-    container_name: privatepi_frontend_dev
-    expose:
-      - "3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    depends_on:
-      - web
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - VITE_API_URL=${VITE_API_URL}
-    networks:
-      - privatepi
-    restart: unless-stopped
+  # Note: frontend is built into the `web` image (multi-stage Dockerfile) for production.
+  # No separate frontend or nginx service is run in production compose to avoid port conflicts.
 
 volumes:
   postgres_data:
