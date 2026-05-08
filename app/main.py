@@ -32,6 +32,26 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 # Initialize FastAPI App
 app = FastAPI(title="Private PI API", version="1.0.0")
 
+
+class ApiPathRewriteMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http":
+            path = scope.get("path", "")
+            if path == "/api/backend":
+                scope = dict(scope)
+                scope["path"] = "/backend"
+            elif path.startswith("/api/backend/"):
+                scope = dict(scope)
+                scope["path"] = "/backend/" + path[len("/api/backend/"):]
+
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(ApiPathRewriteMiddleware)
+
 # Determine allowed origins based on environment
 environment = os.getenv("ENVIRONMENT", "development")
 if environment == "production":
