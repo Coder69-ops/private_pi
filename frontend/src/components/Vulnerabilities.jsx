@@ -68,7 +68,7 @@ const Vulnerabilities = () => {
             if (parsed.length > 0) return parsed;
         } catch (e) { }
 
-        const API_URL = '/api/backend';
+        const API_URL = import.meta.env.VITE_API_URL || '/api/backend';
         // Fallback: Global Regex match on entire output
         const regex = /\[(.*?)\]\s+\[(.*?)\]\s+\[(.*?)\]\s+(.*)/g;
         let match;

@@ -19,7 +19,8 @@ import EthicalFramework from './components/legal/EthicalFramework';
 
 // Use relative path for production (Backend API is at /api/backend on same domain)
 // This works with nginx reverse proxy configuration
-const API_URL = '/api/backend';
+// Use relative path for production, matches env var logic
+const API_URL = import.meta.env.VITE_API_URL || '/api/backend';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -162,7 +163,7 @@ function PrivatePIApp() {
         if (activeScanId && scanStatus !== 'COMPLETED' && scanStatus !== 'FAILED') {
             intervalId = setInterval(async () => {
                 try {
-                    const response = await axios.get(`${API_URL}/scan/${activeScanId}`);
+                    const response = await apiClient.get(`/scan/${activeScanId}`);
 
                     // Critical Fix: Don't revert "RUNNING" to "PENDING"
                     // If local is RUNNING and remote is PENDING, keep RUNNING.
@@ -201,7 +202,7 @@ function PrivatePIApp() {
         setActiveTarget(formData.target);
 
         try {
-            const response = await axios.post(`${API_URL}/scan`, formData);
+            const response = await apiClient.post(`/scan`, formData);
             setActiveScanId(response.data.id);
             addToast(`Scan initiated for ${formData.target}`, 'success');
         } catch (error) {

@@ -21,7 +21,7 @@ const Targets = () => {
     const { addToast } = useToast();
 
     // Updated API URL to avoid collision with frontend routes
-    const API_URL = '/api/backend';
+    const API_URL = import.meta.env.VITE_API_URL || '/api/backend';
 
     // Fetch targets
     const fetchTargets = async () => {
@@ -54,7 +54,7 @@ const Targets = () => {
         if (!targetName) return;
 
         try {
-            await axios.delete(`${API_URL}/targets/${targetName}`);
+            await apiClient.delete(`${API_URL}/targets/${targetName}`);
             setTargets(targets.filter(t => t.target !== targetName));
             addToast(`Target ${targetName} deleted`, 'success');
         } catch (err) {
@@ -67,7 +67,7 @@ const Targets = () => {
     const handleGenerateReport = async (taskId) => {
         if (!taskId) return;
         try {
-            await axios.post(`${API_URL}/scan/${taskId}/report`);
+            await apiClient.post(`${API_URL}/scan/${taskId}/report`);
             addToast("Report generation initiated. It will be ready shortly.", 'success');
         } catch (err) {
             console.error(err);
@@ -83,7 +83,7 @@ const Targets = () => {
         try {
             // "Adding" a target means initializing a passive scan
             // Include ReportGenerator and AIExecutiveSummary for immediate value
-            await axios.post(`${API_URL}/scan`, {
+            await apiClient.post(`${API_URL}/scan`, {
                 target: newTarget,
                 scan_type: 'passive',
                 modules: ['subdomain_seeker', 'AIExecutiveSummary', 'ReportGenerator'],

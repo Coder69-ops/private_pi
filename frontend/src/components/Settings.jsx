@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MdSettings, MdSecurity, MdNotifications, MdColorLens, MdStorage, MdLanguage, MdPerson, MdFingerprint, MdHistory, MdVpnKey, MdCheckCircle, MdLogout } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../utils/apiClient';
-const API_URL = '/api/backend';
+const API_URL = import.meta.env.VITE_API_URL || '/api/backend';
 
 const Settings = () => {
     const { currentUser } = useAuth();
@@ -33,7 +33,7 @@ const Settings = () => {
 
     const fetchSettings = async () => {
         try {
-            const response = await axios.get(`${API_URL}/settings`);
+            const response = await apiClient.get(`${API_URL}/settings`);
             setFormData(response.data);
         } catch (error) {
             console.error("Failed to load settings", error);
@@ -46,7 +46,7 @@ const Settings = () => {
         setSaving(true);
         setMessage(null);
         try {
-            await axios.post(`${API_URL}/settings`, formData);
+            await apiClient.post(`${API_URL}/settings`, formData);
             setMessage({ type: 'success', text: 'Settings saved successfully' });
             setTimeout(() => setMessage(null), 3000);
         } catch (error) {

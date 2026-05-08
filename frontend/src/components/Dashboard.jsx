@@ -4,7 +4,7 @@ import { MdRadar, MdBugReport, MdGpsFixed, MdCheckCircle } from 'react-icons/md'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Use relative path for production
-const API_URL = '/api/backend';
+const API_URL = import.meta.env.VITE_API_URL || '/api/backend';
 
 const StatCard = ({ title, value, icon, color }) => (
     <div className="glass-panel p-6 rounded-xl flex items-center justify-between relative overflow-hidden group">

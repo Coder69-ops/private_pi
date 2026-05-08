@@ -7,7 +7,7 @@ import ConfirmationModal from './ConfirmationModal';
 import EmptyState from './EmptyState';
 import { useNavigate } from 'react-router-dom';
 
-const API_URL = '/api/backend';
+const API_URL = import.meta.env.VITE_API_URL || '/api/backend';
 
 
 const ScanHistory = () => {
@@ -47,7 +47,7 @@ const ScanHistory = () => {
         if (!scanId) return;
 
         try {
-            await axios.delete(`${API_URL}/scans/${scanId}`);
+            await apiClient.delete(`${API_URL}/scans/${scanId}`);
             setScans(scans.filter(s => s.id !== scanId));
             addToast("Scan record deleted", 'success');
         } catch (error) {
