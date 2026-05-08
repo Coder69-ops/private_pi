@@ -17,7 +17,7 @@ services:
       - privatepi
 
   db:
-    image: postgres:15-alpine
+    image: postgres:13-alpine
     container_name: privatepi_db_dev
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-user}
