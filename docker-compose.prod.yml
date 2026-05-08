@@ -1,7 +1,6 @@
-version: '3.8'
+# Removed version: '3.8' as it's obsolete in modern Docker and causes warnings in Dokploy logs
 
 services:
-  # AUTO-UPDATER
   watchtower:
     image: containrrr/watchtower
     volumes:
@@ -11,8 +10,8 @@ services:
 
   nginx:
     image: coder69ops/private_pi-nginx:latest
-    ports:
-      - "80:80"
+    # ports:
+    #   - "80:80"  <-- Commented out to prevent the "port is already allocated" error
     depends_on:
       - web
     restart: always
@@ -48,11 +47,6 @@ services:
         limits:
           cpus: '1.0'
           memory: 1G
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
