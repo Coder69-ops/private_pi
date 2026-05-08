@@ -3,8 +3,8 @@ import React, { useContext, useState, useEffect } from 'react';
 
 const AuthContext = React.createContext();
 
-// Use relative path for production (served via nginx at same domain)
-// For local dev, can override with VITE_API_URL=/api to match docker-compose routing
+// Base API prefix; call sites add route paths directly.
+// Keep this aligned with the deployed `/api/backend` public prefix.
 const API_URL = import.meta.env.VITE_API_URL || '/api/backend';
 
 export function useAuth() {
@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
         
         if (token && userId) {
             // Verify token is still valid by checking user endpoint
-            fetch(`${API_URL}/backend/user`, {
+            fetch(`${API_URL}/user`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -54,7 +54,7 @@ export function AuthProvider({ children }) {
     }, []);
 
     async function signup(email, password) {
-        const response = await fetch(`${API_URL}/backend/register`, {
+        const response = await fetch(`${API_URL}/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -77,7 +77,7 @@ export function AuthProvider({ children }) {
     }
 
     async function login(email, password) {
-        const response = await fetch(`${API_URL}/backend/login`, {
+        const response = await fetch(`${API_URL}/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
