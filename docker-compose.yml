@@ -32,10 +32,7 @@ services:
   web:
     build: .
     container_name: privatepi_backend_dev
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - .:/app
-      - scan_data:/app/scans
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     expose:
       - "8000"
     depends_on:
@@ -57,10 +54,6 @@ services:
     build: .
     container_name: privatepi_worker_dev
     command: celery -A app.tasks worker --loglevel=info
-    volumes:
-      - .:/app
-      - /var/run/docker.sock:/var/run/docker.sock
-      - scan_data:/app/scans
     depends_on:
       db:
         condition: service_healthy
@@ -72,25 +65,6 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - ENVIRONMENT=${ENVIRONMENT}
-    networks:
-      - privatepi
-    restart: unless-stopped
-
-  # Note: frontend is built into the `web` image (multi-stage Dockerfile) for production.
-  # Nginx reverse-proxy (public-facing). It builds the frontend (production) image
-  # and serves static files while proxying API and WebSocket requests to `web`.
-  nginx:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.prod
-    container_name: privatepi_nginx_prod
-    depends_on:
-      - web
-    expose:
-      - "80"
-      - "443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - privatepi
     restart: unless-stopped
