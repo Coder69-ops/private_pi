@@ -3,6 +3,7 @@ import json
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from .database import engine, Base, get_db
 from .models import ScanTask, ScanResult, Subscription, UserSettings, User
