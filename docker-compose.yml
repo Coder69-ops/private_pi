@@ -83,9 +83,8 @@ services:
   nginx:
     image: nginx:1.25-alpine
     container_name: privatepi_nginx_dev
-    ports:
-      - "80:80"
-      - "443:443"
+    expose:
+      - "80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
