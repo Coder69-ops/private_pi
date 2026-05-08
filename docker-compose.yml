@@ -77,7 +77,23 @@ services:
     restart: unless-stopped
 
   # Note: frontend is built into the `web` image (multi-stage Dockerfile) for production.
-  # No separate frontend or nginx service is run in production compose to avoid port conflicts.
+  # Nginx reverse-proxy (public-facing). It builds the frontend (production) image
+  # and serves static files while proxying API and WebSocket requests to `web`.
+  nginx:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: privatepi_nginx_prod
+    depends_on:
+      - web
+    expose:
+      - "80"
+      - "443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - privatepi
+    restart: unless-stopped
 
 volumes:
   postgres_data:
