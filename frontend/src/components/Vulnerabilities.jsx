@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../utils/apiClient';
 import { MdBugReport, MdExpandMore, MdExpandLess, MdInfo, MdSecurity, MdWarning, MdSafetyCheck } from 'react-icons/md';
 import EmptyState from './EmptyState';
 
@@ -9,7 +9,7 @@ const Vulnerabilities = () => {
 
     const fetchVulns = async () => {
         try {
-            const res = await axios.get('/api/backend/vulnerabilities');
+            const res = await apiClient.get('/backend/vulnerabilities');
             if (Array.isArray(res.data)) {
                 setVulns(res.data);
             } else {

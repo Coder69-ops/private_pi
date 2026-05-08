@@ -2,23 +2,42 @@ version: '3.8'
 
 services:
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
+    container_name: privatepi_redis_dev
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - privatepi
 
   db:
-    image: postgres:13
+    image: postgres:15-alpine
+    container_name: privatepi_db_dev
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: private_pi
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-private_pi}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - privatepi
 
   web:
     build: .
+    container_name: privatepi_backend_dev
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - .:/app
@@ -26,41 +45,61 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-private_pi}
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - DATABASE_URL=postgresql://user:password@db:5432/private_pi
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    networks:
+      - privatepi
+    restart: unless-stopped
 
   worker:
     build: .
+    container_name: privatepi_worker_dev
     command: celery -A app.tasks worker --loglevel=info
     volumes:
       - .:/app
-      - /var/run/docker.sock:/var/run/docker.sock # Crucial: Access to host Docker
+      - /var/run/docker.sock:/var/run/docker.sock
       - scan_data:/app/scans
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-private_pi}
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - DATABASE_URL=postgresql://user:password@db:5432/private_pi
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    networks:
+      - privatepi
+    restart: unless-stopped
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.25-alpine
+    container_name: privatepi_nginx_dev
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - frontend
       - web
+    networks:
+      - privatepi
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
-    # Expose for nginx, map to host for dev debug if needed, but 80 is primary
+    container_name: privatepi_frontend_dev
     ports:
       - "3000:3000"
     volumes:
@@ -69,10 +108,17 @@ services:
     depends_on:
       - web
     environment:
-      - CHOKIDAR_USEPOLLING=true # Fix for hot reload in some docker envs
-
-      - CHOKIDAR_USEPOLLING=true # Fix for hot reload in some docker envs
+      - CHOKIDAR_USEPOLLING=true
+      - VITE_API_URL=${VITE_API_URL:-/api/backend}
+    networks:
+      - privatepi
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  redis_data:
   scan_data:
+
+networks:
+  privatepi:
+    driver: bridge

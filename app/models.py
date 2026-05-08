@@ -47,10 +47,19 @@ class Subscription(Base):
     last_scan_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(String, primary_key=True, default=generate_uuid)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_login = Column(DateTime(timezone=True), nullable=True)
+
 class UserSettings(Base):
     __tablename__ = "user_settings"
     
-    user_id = Column(String, primary_key=True, index=True) # Linked to Firebase UID
+    user_id = Column(String, primary_key=True, index=True) # Foreign key to User.id
     shodan_api_key = Column(String, nullable=True)
     hibp_api_key = Column(String, nullable=True)
     openrouter_api_key = Column(String, nullable=True)

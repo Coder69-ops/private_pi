@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../utils/apiClient';
 import { useToast } from '../context/ToastContext';
 import {
     FaBullseye, FaPlus, FaTrash, FaFilePdf,
@@ -27,7 +27,7 @@ const Targets = () => {
     const fetchTargets = async () => {
         try {
             setLoading(true);
-            const response = await axios.get(`${API_URL}/targets`);
+            const response = await apiClient.get(`${API_URL}/targets`);
             setTargets(response.data);
         } catch (err) {
             console.error(err);

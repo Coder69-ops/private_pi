@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../utils/apiClient';
 import { MdHistory, MdSearch, MdFilterList, MdCheckCircle, MdError, MdHourglassEmpty, MdChevronRight, MdExpandMore, MdDelete, MdRadar } from 'react-icons/md';
 import ScanResults from './ScanResults';
 import { useToast } from '../context/ToastContext';
@@ -24,7 +24,7 @@ const ScanHistory = () => {
     useEffect(() => {
         const fetchScans = async () => {
             try {
-                const response = await axios.get(`${API_URL}/scans`);
+                const response = await apiClient.get(`${API_URL}/scans`);
                 // Sort by date desc
                 const sorted = response.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                 setScans(sorted);

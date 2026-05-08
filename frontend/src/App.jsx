@@ -17,8 +17,8 @@ import PrivacyPolicy from './components/legal/PrivacyPolicy';
 import TermsOfService from './components/legal/TermsOfService';
 import EthicalFramework from './components/legal/EthicalFramework';
 
-// Use relative path for production (Backend API is now at /api/backend/...)
-// Frontend routes like /targets no longer collide.
+// Use relative path for production (Backend API is at /api/backend on same domain)
+// This works with nginx reverse proxy configuration
 const API_URL = '/api/backend';
 
 // Protected Route Wrapper
@@ -47,8 +47,8 @@ function PrivatePIApp() {
     // Axios Interceptor: Attach User ID to all requests
     useLayoutEffect(() => {
         const interceptor = axios.interceptors.request.use(config => {
-            if (currentUser?.uid) {
-                config.headers['X-Firebase-UID'] = currentUser.uid;
+            if (currentUser?.id) {
+                config.headers['X-User-ID'] = currentUser.id;
             }
             return config;
         }, error => Promise.reject(error));
@@ -59,12 +59,12 @@ function PrivatePIApp() {
     // WebSocket Persistence
     useEffect(() => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws?uid=${currentUser?.uid}`;
+        const wsUrl = `${protocol}//${window.location.host}/ws?uid=${currentUser?.id}`;
         let ws;
         let reconnectTimer;
 
         const connect = () => {
-            if (!currentUser?.uid) return;
+            if (!currentUser?.id) return;
 
             try {
                 ws = new WebSocket(wsUrl);

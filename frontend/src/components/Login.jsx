@@ -4,13 +4,12 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import { MdSecurity, MdLock, MdEmail, MdVpnKey } from 'react-icons/md';
-import { FcGoogle } from 'react-icons/fc';
 
 export default function Login() {
     const emailRef = useRef();
     const passwordRef = useRef();
     const passwordConfirmRef = useRef();
-    const { login, signup, loginWithGoogle } = useAuth();
+    const { login, signup } = useAuth();
     const { addToast } = useToast();
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -40,29 +39,13 @@ export default function Login() {
             console.error(err);
             let msg = isLogin ? 'Failed to sign in.' : 'Failed to create an account.';
 
-            // Map common Firebase errors to user-friendly messages
-            if (err.code === 'auth/email-already-in-use') msg = 'Email is already registered.';
-            if (err.code === 'auth/weak-password') msg = 'Password should be at least 6 characters.';
-            if (err.code === 'auth/operation-not-allowed') msg = 'Email/Password login is currently disabled by administrator.';
-            if (err.code === 'auth/invalid-credential') msg = 'Invalid credentials provided.';
+            // Map backend error messages to user-friendly messages
+            if (err.message?.includes('already registered')) msg = 'Email is already registered.';
+            if (err.message?.includes('at least 6 characters')) msg = 'Password must be at least 6 characters.';
+            if (err.message?.includes('Invalid email or password')) msg = 'Invalid email or password.';
 
             setError(msg);
             addToast("AUTHENTICATION FAILED.", "error");
-        }
-        setLoading(false);
-    }
-
-    async function handleGoogleLogin() {
-        try {
-            setError('');
-            setLoading(true);
-            await loginWithGoogle();
-            addToast("IDENTITY VERIFIED. ACCESS GRANTED.", "success");
-            navigate('/dashboard');
-        } catch (e) {
-            console.error(e);
-            setError('Failed to sign in with Google.');
-            addToast("IDENTITY VERIFICATION FAILED.", "error");
         }
         setLoading(false);
     }
@@ -152,20 +135,6 @@ export default function Login() {
                         </button>
                     </div>
                 </form>
-
-                <div className="my-8 flex items-center gap-4">
-                    <div className="h-px bg-white/10 flex-1"></div>
-                    <span className="text-gray-500 text-xs uppercase">Or Connect Via</span>
-                    <div className="h-px bg-white/10 flex-1"></div>
-                </div>
-
-                <button
-                    onClick={handleGoogleLogin}
-                    disabled={loading}
-                    className="w-full bg-white text-black font-bold py-3 rounded-lg hover:bg-gray-200 transition-all flex items-center justify-center gap-3"
-                >
-                    <FcGoogle className="text-xl" /> Google Identity
-                </button>
 
                 <div className="mt-8 text-center text-xs text-gray-600">
                     SECURE CONNECTION ESTABLISHED • AES-256 ENCRYPTED

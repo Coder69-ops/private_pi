@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MdSettings, MdSecurity, MdNotifications, MdColorLens, MdStorage, MdLanguage, MdPerson, MdFingerprint, MdHistory, MdVpnKey, MdCheckCircle, MdLogout } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
-
-import axios from 'axios';
+import apiClient from '../utils/apiClient';
 const API_URL = '/api/backend';
 
 const Settings = () => {

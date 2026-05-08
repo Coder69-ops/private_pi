@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../utils/apiClient';
 import { MdRadar, MdBugReport, MdGpsFixed, MdCheckCircle } from 'react-icons/md';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -37,9 +37,9 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 const [statsRes, vulnsRes, scansRes] = await Promise.all([
-                    axios.get(`${API_URL}/stats`),
-                    axios.get(`${API_URL}/vulnerabilities?limit=5`),
-                    axios.get(`${API_URL}/scans?limit=50`)
+                    apiClient.get(`${API_URL}/stats`),
+                    apiClient.get(`${API_URL}/vulnerabilities?limit=5`),
+                    apiClient.get(`${API_URL}/scans?limit=50`)
                 ]);
 
                 setStats(statsRes.data);

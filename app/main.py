@@ -5,41 +5,146 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from .database import engine, Base, get_db
-from .models import ScanTask, ScanResult, Subscription, UserSettings
-from .schemas import ScanRequest, ScanTaskResponse, SubscriptionRequest, SubscriptionResponse, UserSettingsSchema, TargetSummary
+from .models import ScanTask, ScanResult, Subscription, UserSettings, User
+from .schemas import (
+    ScanRequest, ScanTaskResponse, SubscriptionRequest, SubscriptionResponse, 
+    UserSettingsSchema, TargetSummary, UserRegister, UserLogin, TokenResponse, UserResponse
+)
 from .tasks import perform_scan
 import uuid
 import asyncio
 import redis.asyncio as redis
 from fastapi import WebSocket, WebSocketDisconnect, Header, UploadFile, File
 from typing import List, Optional
+import jwt
+import bcrypt
+from datetime import datetime, timedelta, timezone
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# JWT Configuration
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+if SECRET_KEY == "your-secret-key-change-in-production":
+    print("⚠️  WARNING: Using default SECRET_KEY. Set SECRET_KEY environment variable in production!")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-app = FastAPI(title="Private PI", description="Distributed OSINT Scanner")
-print("Starting Private PI v1.0.1 (Fixed OS Import)")
+# Initialize FastAPI App
+app = FastAPI(title="Private PI API", version="1.0.0")
 
+# Determine allowed origins based on environment
+environment = os.getenv("ENVIRONMENT", "development")
+if environment == "production":
+    allowed_origins = [
+        "https://privatepi.shopsync.studio",
+        "https://www.privatepi.shopsync.studio",
+    ]
+else:
+    # Development - allow localhost and relative paths
+    allowed_origins = ["*"]
+
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","), # Configurable for production
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-from fastapi.staticfiles import StaticFiles
-import os
-os.makedirs("/app/scans", exist_ok=True)
-app.mount("/scans", StaticFiles(directory="/app/scans"), name="scans")
+if environment == "production":
+    print(f"⚠️  Running in PRODUCTION mode")
+    print(f"✅ CORS allowed for: {', '.join(allowed_origins)}")
+else:
+    print(f"ℹ️  Running in DEVELOPMENT mode")
+    print(f"✅ CORS allows all origins (*)")
 
-# Dependency to get current user ID
-async def get_current_user(x_firebase_uid: Optional[str] = Header(None)):
-    if not x_firebase_uid:
-        # In a real app we'd verify a JWT here. 
-        # For this prototype we check the header presence.
-        raise HTTPException(status_code=401, detail="Missing Authentication Header")
-    return x_firebase_uid
+# Initialize Database Tables
+Base.metadata.create_all(bind=engine)
+
+security = HTTPBearer()
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt"""
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash"""
+    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+
+def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None):
+    """Create a JWT access token"""
+    if expires_delta is None:
+        expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    expire = datetime.now(timezone.utc) + expires_delta
+    to_encode = {"sub": user_id, "exp": expire}
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """Extract and verify JWT token from Authorization header"""
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid authentication token")
+        return user_id
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+
+# ===== AUTHENTICATION ENDPOINTS =====
+
+@app.post("/backend/register", response_model=TokenResponse)
+def register(request: UserRegister, db: Session = Depends(get_db)):
+    """Register a new user"""
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.email == request.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Validate password length
+    if len(request.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    
+    # Create new user
+    user_id = str(uuid.uuid4())
+    hashed_password = hash_password(request.password)
+    new_user = User(id=user_id, email=request.email, password_hash=hashed_password)
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    # Create access token
+    access_token = create_access_token(user_id)
+    return TokenResponse(access_token=access_token, token_type="bearer", user_id=user_id)
+
+@app.post("/backend/login", response_model=TokenResponse)
+def login(request: UserLogin, db: Session = Depends(get_db)):
+    """Login user with email and password"""
+    user = db.query(User).filter(User.email == request.email).first()
+    
+    if not user or not verify_password(request.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    # Update last login
+    user.last_login = datetime.now(timezone.utc)
+    db.commit()
+    
+    # Create access token
+    access_token = create_access_token(user.id)
+    return TokenResponse(access_token=access_token, token_type="bearer", user_id=user.id)
+
+@app.get("/backend/user", response_model=UserResponse)
+def get_user(user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get current user info"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 
 @app.post("/backend/subscribe", response_model=SubscriptionResponse)

@@ -60,7 +60,7 @@ const PrivacyPolicy = () => {
                             <span className="text-primary">03.</span> THIRD_PARTY_COMMS
                         </h2>
                         <p>
-                            We utilize Firebase for authentication. Refer to Google's Privacy Policy for identity management. No scan data is ever shared with third parties, law enforcement, or advertisers unless compelled by a verified court order.
+                            We utilize custom JWT-based authentication. Your password is hashed with bcrypt and never stored in plaintext. No scan data is ever shared with third parties, law enforcement, or advertisers unless compelled by a verified court order.
                         </p>
                     </section>
                 </div>
