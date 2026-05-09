@@ -1,7 +1,7 @@
 import logging
 from celery import Celery # type: ignore
 import docker # type: ignore
-from docker.errors import docker # type: ignoreException, APIError
+from docker.errors import DockerException, APIError # type: ignore
 import json
 import os
 import socket
