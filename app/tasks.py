@@ -304,22 +304,27 @@ def run_visual_recon(task_id: str, target: str, target_url: str):
     # Verify if file exists (on our side)
     file_path = f"/app/scans/{filename}"
     if os.path.exists(file_path):
-            # Update ScanTask with screenshot path
-            db = SessionLocal()
+        db = SessionLocal()
+        try:
             task = db.query(ScanTask).filter(ScanTask.id == task_id).first()
             if task:
                 current_paths = task.screenshot_paths or {}
-                current_paths["desktop"] = f"/scans/{filename}" # Web accessible path
+                current_paths["desktop"] = f"/scans/{filename}"  # Web accessible path
                 task.screenshot_paths = current_paths
                 db.commit()
-                db.close()
-            
-                save_result(task_id, "VisualRecon", {"desktop": f"/scans/{filename}"}, status="TOOL_COMPLETED")
+
+            save_result(task_id, "VisualRecon", {"desktop": f"/scans/{filename}"}, status="TOOL_COMPLETED")
             return f"/scans/{filename}"
-    else:
-            logger.error(f"Screenshot file not found at {file_path}")
-                save_result(task_id, "VisualRecon", {"error": "Screenshot failed"}, status="TOOL_FAILED")
+        except Exception as e:
+            logger.error(f"DB error while saving screenshot path: {e}")
+            save_result(task_id, "VisualRecon", {"error": str(e)}, status="TOOL_FAILED")
             return None
+        finally:
+            db.close()
+    else:
+        logger.error(f"Screenshot file not found at {file_path}")
+        save_result(task_id, "VisualRecon", {"error": "Screenshot failed"}, status="TOOL_FAILED")
+        return None
 
 def run_sherlock_scan(task_id: str, target: str):
     save_result(task_id, "UserHunter", {"message": "Searching social media accounts..."}, status="RUNNING")
