@@ -97,6 +97,21 @@ else:
     print(f"✅ CORS allows all origins (*)")
 
 # Initialize Database Tables
+from sqlalchemy import text # type: ignore
+try:
+    with engine.connect() as conn:
+        with conn.begin():
+            conn.execute(text("ALTER TABLE scan_tasks ADD COLUMN IF NOT EXISTS screenshot_paths JSON;"))
+            conn.execute(text("ALTER TABLE scan_tasks ADD COLUMN IF NOT EXISTS ai_summary JSON;"))
+            conn.execute(text("ALTER TABLE scan_tasks ADD COLUMN IF NOT EXISTS risk_score VARCHAR;"))
+            conn.execute(text("ALTER TABLE scan_tasks ADD COLUMN IF NOT EXISTS pdf_report_path VARCHAR;"))
+            conn.execute(text("ALTER TABLE scan_tasks ADD COLUMN IF NOT EXISTS user_id VARCHAR;"))
+            conn.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS openrouter_api_key VARCHAR;"))
+            conn.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS openrouter_model VARCHAR DEFAULT 'google/gemini-pro';"))
+            conn.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS auto_pdf_report INTEGER DEFAULT 0;"))
+except Exception as e:
+    print(f"Migration check: {e}")
+
 Base.metadata.create_all(bind=engine)
 
 security = HTTPBearer()
@@ -499,6 +514,34 @@ def list_vulnerabilities(skip: int = 0, limit: int = 50, db: Session = Depends(g
         formatted.append(res_dict)
         
     return formatted
+
+@app.get("/backend/debug/scans")
+def debug_scans():
+    import os
+    if os.path.exists("/app/scans"):
+        return {"files": os.listdir("/app/scans")}
+    return {"files": "DIR_NOT_FOUND"}
+
+@app.get("/scans/{file_name:path}")
+async def serve_scan_files(file_name: str):
+    """Serve generated scan reports and map images (Public, capability URLs)"""
+    import os
+    print(f"DEBUG: requested file_name='{file_name}'")
+    # Prevent path traversal
+    if ".." in file_name or file_name.startswith("/"):
+        raise HTTPException(status_code=400, detail="Invalid file path")
+        
+    file_path = f"/app/scans/{file_name}"
+    print(f"DEBUG: checking existence of {file_path}")
+    if os.path.exists(file_path):
+        print(f"DEBUG: file exists! isfile={os.path.isfile(file_path)}")
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+    else:
+        print(f"DEBUG: File does NOT exist at {file_path}")
+        print(f"DEBUG: contents of /app/scans: {os.listdir('/app/scans') if os.path.exists('/app/scans') else 'DIR NOT FOUND'}")
+        
+    raise HTTPException(status_code=404, detail="File not found on server volume")
 
 # Static Files (Frontend)
 if os.path.exists("/app/static"):
