@@ -1,13 +1,13 @@
 import logging
-from celery import Celery
-import docker
-from docker.errors import DockerException, APIError
+from celery import Celery # type: ignore
+import docker # type: ignore
+from docker.errors import docker # type: ignoreException, APIError
 import json
 import os
 import socket
 import shutil
 import requests
-import redis
+import redis # type: ignore
 from pathlib import Path
 from .database import SessionLocal
 from .models import ScanTask, ScanResult, Subscription, UserSettings

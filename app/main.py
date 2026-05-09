@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 try:
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm import Session # type: ignore
 except Exception:
     # Fallback for environments where SQLAlchemy isn't available to the linter
     from typing import Any as Session
@@ -19,11 +19,11 @@ from .tasks import perform_scan
 import uuid
 import asyncio
 try:
-    import redis.asyncio as redis
+    import redis.asyncio as redis # type: ignore
 except Exception:
     # Fallback to sync redis if async variant is unavailable in this environment
     try:
-        import redis
+        import redis # type: ignore
     except Exception:
         redis = None
 from fastapi import WebSocket, WebSocketDisconnect, Header, UploadFile, File
@@ -33,7 +33,7 @@ import hashlib
 import base64
 import hmac
 try:
-    import bcrypt
+    import bcrypt # type: ignore
 except Exception:
     bcrypt = None
 from datetime import datetime, timedelta, timezone
@@ -248,8 +248,11 @@ manager = ConnectionManager()
 async def redis_connector():
     while True:
         try:
-            r = redis.from_url("redis://redis:6379/0", encoding="utf-8", decode_responses=True) # type: ignore
-            pubsub = r.pubsub()
+            if redis is not None:
+                r = redis.from_url("redis://redis:6379/0", encoding="utf-8", decode_responses=True) # type: ignore
+                pubsub = r.pubsub()
+            else:
+                raise Exception("Redis module is not available")
             await pubsub.subscribe("scan_updates")
             print("Redis subscriber connected.")
             while True:
@@ -312,7 +315,7 @@ def create_scan(request: ScanRequest, db: Session = Depends(get_db), user_id: st
     def _dispatch(func, *fargs):
         if hasattr(func, 'delay'):
             try:
-                func.delay(*fargs) # type: ignore
+                getattr(func, 'delay')(*fargs) # type: ignore
                 return
             except Exception:
                 pass
@@ -372,7 +375,7 @@ async def upload_map_snapshot(task_id: str, file: UploadFile = File(...), db: Se
         from .tasks import generate_report_task
         if hasattr(generate_report_task, 'delay'):
             try:
-                generate_report_task.delay(task_id) # type: ignore
+                getattr(generate_report_task, 'delay')(task_id) # type: ignore
             except Exception:
                 asyncio.get_event_loop().run_in_executor(None, generate_report_task, task_id)
         else:

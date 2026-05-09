@@ -258,7 +258,7 @@ const Settings = () => {
                                                 <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/30 font-bold tracking-wider">RECOMMENDED ENGINE</span>
                                             </div>
                                             <label className="block mt-2">
-                                                <span className="text-emerald-600 font-bold text-sm mb-2 block flex items-center gap-2">
+                                                <span className="text-emerald-600 font-bold text-sm mb-2 flex items-center gap-2">
                                                     OpenRouter API Key
                                                     {formData.openrouter_api_key && <MdCheckCircle className="text-emerald-500 text-xs" />}
                                                 </span>
