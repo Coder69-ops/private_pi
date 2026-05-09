@@ -24,7 +24,7 @@ const ScanHistory = () => {
     useEffect(() => {
         const fetchScans = async () => {
             try {
-                const response = await apiClient.get(`${API_URL}/scans`);
+                const response = await apiClient.get('/scans');
                 // Normalize response to array
                 const respScans = Array.isArray(response.data) ? response.data : (response.data && Array.isArray(response.data.data) ? response.data.data : []);
                 // Sort by date desc
@@ -49,7 +49,7 @@ const ScanHistory = () => {
         if (!scanId) return;
 
         try {
-            await apiClient.delete(`${API_URL}/scans/${scanId}`);
+            await apiClient.delete(`/scans/${scanId}`);
             setScans(scans.filter(s => s.id !== scanId));
             addToast("Scan record deleted", 'success');
         } catch (error) {

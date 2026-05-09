@@ -33,7 +33,7 @@ const Settings = () => {
 
     const fetchSettings = async () => {
         try {
-            const response = await apiClient.get(`${API_URL}/settings`);
+            const response = await apiClient.get('/settings');
             setFormData(response.data);
         } catch (error) {
             console.error("Failed to load settings", error);
@@ -46,7 +46,7 @@ const Settings = () => {
         setSaving(true);
         setMessage(null);
         try {
-            await apiClient.post(`${API_URL}/settings`, formData);
+            await apiClient.post('/settings', formData);
             setMessage({ type: 'success', text: 'Settings saved successfully' });
             setTimeout(() => setMessage(null), 3000);
         } catch (error) {

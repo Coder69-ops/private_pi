@@ -37,9 +37,9 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 const [statsRes, vulnsRes, scansRes] = await Promise.all([
-                    apiClient.get(`${API_URL}/stats`),
-                    apiClient.get(`${API_URL}/vulnerabilities?limit=5`),
-                    apiClient.get(`${API_URL}/scans?limit=50`)
+                    apiClient.get('/stats'),
+                    apiClient.get('/vulnerabilities?limit=5'),
+                    apiClient.get('/scans?limit=50')
                 ]);
 
                 setStats(statsRes.data || {});

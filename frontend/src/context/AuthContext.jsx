@@ -1,11 +1,10 @@
 
 import React, { useContext, useState, useEffect } from 'react';
+import apiClient from '../utils/apiClient';
 
 const AuthContext = React.createContext();
 
-// Base API prefix; call sites add route paths directly.
-// Keep this aligned with the deployed `/api/backend` public prefix.
-const API_URL = import.meta.env.VITE_API_URL || '/api/backend';
+// Base API prefix is configured in `apiClient`.
 
 export function useAuth() {
     return useContext(AuthContext);
@@ -19,57 +18,32 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         const token = localStorage.getItem('access_token');
         const userId = localStorage.getItem('user_id');
-        
+
         if (token && userId) {
-            // Verify token is still valid by checking user endpoint
-            fetch(`${API_URL}/user`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            })
-            .then(res => {
-                if (res.ok) {
-                    return res.json();
-                } else {
-                    // Token expired or invalid
+            apiClient.get('/user')
+                .then(res => {
+                    if (res?.data) {
+                        setCurrentUser({ id: res.data.id, email: res.data.email });
+                    } else {
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('user_id');
+                        setCurrentUser(null);
+                    }
+                })
+                .catch(() => {
                     localStorage.removeItem('access_token');
                     localStorage.removeItem('user_id');
                     setCurrentUser(null);
-                }
-            })
-            .then(data => {
-                if (data) {
-                    setCurrentUser({ id: data.id, email: data.email });
-                }
-            })
-            .catch(() => {
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('user_id');
-                setCurrentUser(null);
-            })
-            .finally(() => setLoading(false));
+                })
+                .finally(() => setLoading(false));
         } else {
             setLoading(false);
         }
     }, []);
 
     async function signup(email, password) {
-        const response = await fetch(`${API_URL}/register`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email, password })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            const err = new Error(error.detail || 'Registration failed');
-            err.code = error.detail;
-            throw err;
-        }
-
-        const data = await response.json();
+        const res = await apiClient.post('/register', { email, password });
+        const data = res.data;
         localStorage.setItem('access_token', data.access_token);
         localStorage.setItem('user_id', data.user_id);
         setCurrentUser({ id: data.user_id, email });
@@ -77,22 +51,8 @@ export function AuthProvider({ children }) {
     }
 
     async function login(email, password) {
-        const response = await fetch(`${API_URL}/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email, password })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            const err = new Error(error.detail || 'Login failed');
-            err.code = error.detail;
-            throw err;
-        }
-
-        const data = await response.json();
+        const res = await apiClient.post('/login', { email, password });
+        const data = res.data;
         localStorage.setItem('access_token', data.access_token);
         localStorage.setItem('user_id', data.user_id);
         setCurrentUser({ id: data.user_id, email });

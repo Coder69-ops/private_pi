@@ -81,8 +81,11 @@ def save_result(task_id: str, tool_name: str, result_data: dict, status: str = N
         scan_result = ScanResult(task_id=task_id, tool_name=tool_name, result=result_data)
         db.add(scan_result)
         
-        # Update task status if provided
-        if status and status != "TOOL_COMPLETED":
+        # Update task status if provided. Only update overall task status for global states
+        # (PENDING, RUNNING, COMPLETED, FAILED). Tool-level statuses like TOOL_COMPLETED or TOOL_FAILED
+        # should not overwrite the overall scan task status.
+        overall_states = {"PENDING", "RUNNING", "COMPLETED", "FAILED"}
+        if status and status in overall_states:
             if task: # Re-use task object
                 task.status = status
                 if status in ["COMPLETED", "FAILED"]:
@@ -130,7 +133,11 @@ def run_container_tool(image: str, command: str, volumes: dict = None, user: str
     """
     container = None
     try:
-        client = docker.from_env()
+        try:
+            client = docker.from_env()
+        except Exception as e:
+            logger.error(f"Docker client unavailable: {e}")
+            return {"error": f"Docker unavailable: {e}"}
         logger.info(f"Pulling image {image}...")
         try:
             client.images.get(image)
@@ -187,7 +194,7 @@ def run_container_tool(image: str, command: str, volumes: dict = None, user: str
         
         logger.info(f"Container finished with exit code {exit_code}")
         
-        if exit_code['StatusCode'] != 0:
+        if isinstance(exit_code, dict) and exit_code.get('StatusCode', 0) != 0:
             error_msg = "Tool execution failed"
             if exit_code['StatusCode'] == 137:
                  error_msg = "CRASHED: Out Of Memory (OOM). Tool killed by system."
@@ -274,7 +281,8 @@ def run_nmap_scan(task_id: str, target: str):
     save_result(task_id, "PortPatrol", {"message": "Initializing port scan..."}, status="RUNNING")
     cmd = f"-F -T4 {target}" 
     output = run_container_tool("instrumentisto/nmap", cmd)
-    save_result(task_id, "PortPatrol", output, status="TOOL_COMPLETED")
+    status = "TOOL_COMPLETED" if not (isinstance(output, dict) and output.get('error')) else "TOOL_FAILED"
+    save_result(task_id, "PortPatrol", output, status=status)
     return output
 
 def run_visual_recon(task_id: str, target: str, target_url: str):
@@ -306,11 +314,11 @@ def run_visual_recon(task_id: str, target: str, target_url: str):
                 db.commit()
                 db.close()
             
-            save_result(task_id, "VisualRecon", {"desktop": f"/scans/{filename}"}, status="TOOL_COMPLETED")
+                save_result(task_id, "VisualRecon", {"desktop": f"/scans/{filename}"}, status="TOOL_COMPLETED")
             return f"/scans/{filename}"
     else:
             logger.error(f"Screenshot file not found at {file_path}")
-            save_result(task_id, "VisualRecon", {"error": "Screenshot failed"})
+                save_result(task_id, "VisualRecon", {"error": "Screenshot failed"}, status="TOOL_FAILED")
             return None
 
 def run_sherlock_scan(task_id: str, target: str):
@@ -329,7 +337,8 @@ def run_sherlock_scan(task_id: str, target: str):
              # This is not a system error, just no results
              pass
              
-    save_result(task_id, "UserHunter", output, status="TOOL_COMPLETED")
+    status = "TOOL_COMPLETED" if not (isinstance(output, dict) and output.get('error')) else "TOOL_FAILED"
+    save_result(task_id, "UserHunter", output, status=status)
     return output
 
 def run_tech_detective(task_id: str, target: str):
@@ -338,7 +347,8 @@ def run_tech_detective(task_id: str, target: str):
     scripts = "http-server-header,http-title,http-methods,http-headers"
     cmd = f"-p 80,443 --script {scripts} {target}"
     output = run_container_tool("instrumentisto/nmap", cmd)
-    save_result(task_id, "TechDetective", output, status="TOOL_COMPLETED")
+    status = "TOOL_COMPLETED" if not (isinstance(output, dict) and output.get('error')) else "TOOL_FAILED"
+    save_result(task_id, "TechDetective", output, status=status)
     return output
 
 def run_vuln_scan(task_id: str, target: str):
@@ -354,14 +364,16 @@ def run_vuln_scan(task_id: str, target: str):
     # Re-use the Nmap image (already pulled)
     output = run_container_tool("instrumentisto/nmap", cmd)
     
-    save_result(task_id, "VulnScanner", output, status="TOOL_COMPLETED")
+    status = "TOOL_COMPLETED" if not (isinstance(output, dict) and output.get('error')) else "TOOL_FAILED"
+    save_result(task_id, "VulnScanner", output, status=status)
     return output
 
 def run_sublist3r_scan(task_id: str, target: str):
     save_result(task_id, "SubdomainSeeker", {"message": "Discovering subdomains..."}, status="RUNNING")
     cmd = f"-d {target}"
     output = run_container_tool("secsi/sublist3r", cmd)
-    save_result(task_id, "SubdomainSeeker", output, status="TOOL_COMPLETED")
+    status = "TOOL_COMPLETED" if not (isinstance(output, dict) and output.get('error')) else "TOOL_FAILED"
+    save_result(task_id, "SubdomainSeeker", output, status=status)
     return output
 
 def run_theharvester_scan(task_id: str, target: str):
@@ -390,7 +402,8 @@ def run_theharvester_scan(task_id: str, target: str):
             except Exception as e:
                 logger.error(f"Failed to parse Harvester output: {e}")
     
-    save_result(task_id, "BreachRadar", {"emails_found": emails_count, "logs": output}, status="TOOL_COMPLETED")
+    status = "TOOL_COMPLETED" if not (isinstance(output, dict) and output.get('error')) else "TOOL_FAILED"
+    save_result(task_id, "BreachRadar", {"emails_found": emails_count, "logs": output}, status=status)
     return {"emails_found": emails_count}
 
 def generate_ai_summary(task_id: str, target: str, results: dict):
@@ -484,7 +497,8 @@ def generate_ai_summary(task_id: str, target: str, results: dict):
                 db.commit()
                 db.close()
             
-            save_result(task_id, "AIExecutiveSummary", {"score": score, "summary": summary_text, "mitigation": mitigation}, status="TOOL_COMPLETED")
+            status = "TOOL_COMPLETED" if not (isinstance(score, dict) and score.get('error')) else "TOOL_FAILED"
+            save_result(task_id, "AIExecutiveSummary", {"score": score, "summary": summary_text, "mitigation": mitigation}, status=status)
             return {"score": score, "summary": summary_text}
         else:
             error_msg = f"OpenRouter Error: {resp.status_code} - {resp.text[:200]}"
@@ -816,7 +830,8 @@ def generate_pdf_report(task_id: str, target: str, results: dict):
                  logger.error(f"DB Error update pdf path: {e}")
              finally:
                  db.close()
-             save_result(task_id, "ReportGenerator", {"pdf_url": f"/scans/{pdf_filename}"}, status="TOOL_COMPLETED")
+             status = "TOOL_COMPLETED"
+             save_result(task_id, "ReportGenerator", {"pdf_url": f"/scans/{pdf_filename}"}, status=status)
     else:
              logger.error(f"PDF file not found after generation: {output}") # Output from chrome container
              save_result(task_id, "ReportGenerator", {"error": "PDF generation failed"}, status="FAILED")

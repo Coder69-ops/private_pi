@@ -9,7 +9,7 @@ const Vulnerabilities = () => {
 
     const fetchVulns = async () => {
         try {
-            const res = await apiClient.get('/backend/vulnerabilities');
+            const res = await apiClient.get('/vulnerabilities');
             if (Array.isArray(res.data)) {
                 setVulns(res.data);
             } else {

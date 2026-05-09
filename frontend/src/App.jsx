@@ -120,8 +120,9 @@ function PrivatePIApp() {
                                     setScanResults(prevResults => {
                                         const exists = prevResults.find(r => r.tool_name === data.tool);
                                         if (exists) return prevResults;
-                                        addToast(`${data.tool} completed`, 'success');
-                                        return [...prevResults, { tool_name: data.tool, result: data.result }];
+                                        const toolFailed = !!(data.result && data.result.error);
+                                        addToast(`${data.tool} ${toolFailed ? 'failed' : 'completed'}`, toolFailed ? 'error' : 'success');
+                                        return [...prevResults, { tool_name: data.tool, result: data.result, status: toolFailed ? 'failed' : 'completed' }];
                                     });
                                 }
 
