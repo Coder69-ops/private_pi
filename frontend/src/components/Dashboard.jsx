@@ -42,8 +42,10 @@ const Dashboard = () => {
                     apiClient.get(`${API_URL}/scans?limit=50`)
                 ]);
 
-                setStats(statsRes.data);
-                setRecentAlerts(vulnsRes.data);
+                setStats(statsRes.data || {});
+                // Ensure vulnerabilities is always an array
+                const vulns = Array.isArray(vulnsRes.data) ? vulnsRes.data : (vulnsRes.data && Array.isArray(vulnsRes.data.data) ? vulnsRes.data.data : []);
+                setRecentAlerts(vulns);
 
                 // Process scans for activity chart (Last 7 days)
                 const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -57,8 +59,10 @@ const Dashboard = () => {
                     };
                 });
 
-                scansRes.data.forEach(scan => {
-                    const scanDate = scan.created_at.split('T')[0];
+                // Normalize scans response to an array before iterating
+                const scans = Array.isArray(scansRes.data) ? scansRes.data : (scansRes.data && Array.isArray(scansRes.data.data) ? scansRes.data.data : []);
+                scans.forEach(scan => {
+                    const scanDate = (scan.created_at || '').split('T')[0];
                     const dayData = last7Days.find(d => d.date === scanDate);
                     if (dayData) {
                         dayData.scans += 1;
@@ -114,7 +118,7 @@ const Dashboard = () => {
             <div className="glass-panel p-6 rounded-xl border border-border-dark">
                 <h3 className="text-lg font-medium text-white mb-6">Scan Activity (Last 7 Days)</h3>
                 <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height={300}>
                         <AreaChart data={activityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
 
                             <defs>

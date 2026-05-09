@@ -1,5 +1,5 @@
 export const parseNmap = (output) => {
-    if (!output) return [];
+    if (!output || typeof output !== 'string') return [];
     const ports = [];
     const regex = /^\s*(\d+\/(?:tcp|udp))\s+(open)\s+([^\s]+)/gm;
     let match;
@@ -10,7 +10,7 @@ export const parseNmap = (output) => {
 };
 
 export const parseSherlock = (output) => {
-    if (!output) return [];
+    if (!output || typeof output !== 'string') return [];
     const accounts = [];
     const regex = /\[\+\]\s+([^:]+):\s+(https?:\/\/[^\s]+)/g;
     let match;
@@ -21,7 +21,7 @@ export const parseSherlock = (output) => {
 };
 
 export const parseSublist3r = (output) => {
-    if (!output) return [];
+    if (!output || typeof output !== 'string') return [];
     const cleanOutput = output.replace(/\x1B\[\d+;?\d*m/g, '').replace(/\[\d+m/g, '');
     const subdomains = [];
     const regex = /([a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]\.[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
@@ -36,7 +36,7 @@ export const parseSublist3r = (output) => {
 };
 
 export const parseTechNmap = (output) => {
-    if (!output) return [];
+    if (!output || typeof output !== 'string') return [];
     const techs = [];
     const pushTech = (name, val) => {
         if (val) techs.push({ name, version: val.trim() });
@@ -58,7 +58,7 @@ export const parseTechNmap = (output) => {
 };
 
 export const parseNuclei = (output) => {
-    if (!output) return [];
+    if (!output || typeof output !== 'string') return [];
 
     // Try parsing as JSONL
     try {

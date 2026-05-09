@@ -156,7 +156,7 @@ function PrivatePIApp() {
             if (reconnectTimer) clearTimeout(reconnectTimer);
             if (ws) ws.close();
         };
-    }, [currentUser?.uid]);
+    }, [currentUser?.id]);
 
     // Polling (Fallback) - Fixed Status Overwrite Logic
     useEffect(() => {
@@ -176,8 +176,11 @@ function PrivatePIApp() {
                         return remoteStatus;
                     });
 
-                    if (response.data.results && response.data.results.length > scanResults.length) {
-                        setScanResults(response.data.results);
+                    if (response.data.results) {
+                        const normalized = Array.isArray(response.data.results) ? response.data.results : [response.data.results];
+                        if (normalized.length > scanResults.length) {
+                            setScanResults(normalized);
+                        }
                     }
                 } catch (error) {
                     console.error("Polling error:", error);

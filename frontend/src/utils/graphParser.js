@@ -49,7 +49,7 @@ export const transformDataToGraph = (data) => {
 
     // 2. Open Ports (Nmap) - Level 1 direct from Root if no subdomains, or mixed.
     // For simplicity, we attach main ports to Root.
-    if (data.nmap_data && data.nmap_data.open_ports) {
+    if (data.nmap_data && Array.isArray(data.nmap_data.open_ports)) {
         data.nmap_data.open_ports.forEach((port, idx) => {
             const portId = `port-${port.port}`;
             if (!addedIds.has(portId)) {
@@ -74,6 +74,7 @@ export const transformDataToGraph = (data) => {
     // 3. Subdomains (Sublist3r) - Level 1
     if (data.subdomains && Array.isArray(data.subdomains)) {
         data.subdomains.forEach((sub, idx) => {
+            if (typeof sub !== 'string') return;
             const subId = `sub-${idx}`;
             // Simple truncation for display
             const label = sub.replace(data.target, '').replace(/\.$/, '') || sub;

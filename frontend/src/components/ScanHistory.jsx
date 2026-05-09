@@ -25,8 +25,10 @@ const ScanHistory = () => {
         const fetchScans = async () => {
             try {
                 const response = await apiClient.get(`${API_URL}/scans`);
+                // Normalize response to array
+                const respScans = Array.isArray(response.data) ? response.data : (response.data && Array.isArray(response.data.data) ? response.data.data : []);
                 // Sort by date desc
-                const sorted = response.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                const sorted = respScans.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                 setScans(sorted);
             } catch (error) {
                 console.error("Error fetching scans:", error);
