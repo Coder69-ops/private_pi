@@ -248,7 +248,7 @@ manager = ConnectionManager()
 async def redis_connector():
     while True:
         try:
-            r = redis.from_url("redis://redis:6379/0", encoding="utf-8", decode_responses=True)
+            r = redis.from_url("redis://redis:6379/0", encoding="utf-8", decode_responses=True) # type: ignore
             pubsub = r.pubsub()
             await pubsub.subscribe("scan_updates")
             print("Redis subscriber connected.")
@@ -312,7 +312,7 @@ def create_scan(request: ScanRequest, db: Session = Depends(get_db), user_id: st
     def _dispatch(func, *fargs):
         if hasattr(func, 'delay'):
             try:
-                func.delay(*fargs)
+                func.delay(*fargs) # type: ignore
                 return
             except Exception:
                 pass
@@ -347,7 +347,7 @@ def trigger_report_generation(task_id: str, db: Session = Depends(get_db), user_
     from .tasks import generate_report_task
     if hasattr(generate_report_task, 'delay'):
         try:
-            generate_report_task.delay(task_id)
+            generate_report_task.delay(task_id)  # type: ignore
         except Exception:
             # fallback to executor
             asyncio.get_event_loop().run_in_executor(None, generate_report_task, task_id)
@@ -372,7 +372,7 @@ async def upload_map_snapshot(task_id: str, file: UploadFile = File(...), db: Se
         from .tasks import generate_report_task
         if hasattr(generate_report_task, 'delay'):
             try:
-                generate_report_task.delay(task_id)
+                generate_report_task.delay(task_id) # type: ignore
             except Exception:
                 asyncio.get_event_loop().run_in_executor(None, generate_report_task, task_id)
         else:

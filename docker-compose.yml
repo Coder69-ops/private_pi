@@ -46,12 +46,16 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - ENVIRONMENT=${ENVIRONMENT}
+    volumes:
+      - scan_data:/app/scans
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - privatepi
     restart: unless-stopped
 
   worker:
     build: .
+    user: root
     container_name: privatepi_worker_dev
     command: celery -A app.tasks worker --loglevel=info
     depends_on:
@@ -65,6 +69,9 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - ENVIRONMENT=${ENVIRONMENT}
+    volumes:
+      - scan_data:/app/scans
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - privatepi
     restart: unless-stopped

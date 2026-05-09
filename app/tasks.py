@@ -35,7 +35,7 @@ app.conf.beat_schedule = {
 }
 
 # DB Helper
-def save_result(task_id: str, tool_name: str, result_data: dict, status: str = None):
+def save_result(task_id: str, tool_name: str, result_data: dict, status: str | None = None):
     # Aggressive Debug Logging
     print(f"DEBUG: save_result called for {tool_name} status={status}")
     user_id = None
@@ -87,8 +87,16 @@ def save_result(task_id: str, tool_name: str, result_data: dict, status: str = N
         overall_states = {"PENDING", "RUNNING", "COMPLETED", "FAILED"}
         if status and status in overall_states:
             if task: # Re-use task object
-                task.status = status
-                if status in ["COMPLETED", "FAILED"]:
+                # Safe status assignments based on string type
+                if status == "PENDING":
+                    task.status = "PENDING"
+                elif status == "RUNNING":
+                    task.status = "RUNNING"
+                elif status == "COMPLETED":
+                    task.status = "COMPLETED"
+                    task.completed_at = datetime.utcnow()
+                elif status == "FAILED":
+                    task.status = "FAILED"
                     task.completed_at = datetime.utcnow()
         
         db.commit()
@@ -122,26 +130,35 @@ def check_subscriptions():
                 sub.last_scan_at = now
                 db.commit() # Commit the new task
                 
-                perform_scan.delay(task_id, sub.target, "full")
+                perform_scan.delay(task_id, sub.target, "full") # type: ignore
     finally:
         db.close()
 
-def run_container_tool(image: str, command: str, volumes: dict = None, user: str = None) -> dict:
+def run_container_tool(image: str, command: str, volumes: dict | None = None, user: str | None = None) -> dict:
     """
     Spins up a sibling container to run a security tool.
     Captures output and cleans up.
     """
     container = None
     try:
+        # Check standard environment first
         try:
             client = docker.from_env()
+        except docker.errors.DockerException as e: # type: ignore
+            # Fallback for some Dockploy/Coolify environments
+            logger.warning(f"docker.from_env() failed: {e}. Trying explicit unix socket fallback.")
+            try:
+                client = docker.DockerClient(base_url='unix://var/run/docker.sock')
+            except Exception as e2:
+                logger.error(f"Explicit docker socket connection failed: {e2}")
+                return {"error": f"Docker unavailable: {e}"}
         except Exception as e:
             logger.error(f"Docker client unavailable: {e}")
             return {"error": f"Docker unavailable: {e}"}
         logger.info(f"Pulling image {image}...")
         try:
             client.images.get(image)
-        except docker.errors.ImageNotFound:
+        except docker.errors.ImageNotFound: # type: ignore
              logger.info(f"Image {image} not found locally, pulling...")
              client.images.pull(image)
         except Exception as e:
@@ -202,7 +219,7 @@ def run_container_tool(image: str, command: str, volumes: dict = None, user: str
             
         return {"output": logs}
 
-    except DockerException as e:
+    except docker.errors.DockerException as e: # type: ignore
         logger.error(f"Docker error: {e}")
         return {"error": str(e)}
     except Exception as e:
@@ -211,12 +228,14 @@ def run_container_tool(image: str, command: str, volumes: dict = None, user: str
     finally:
         if container:
             try:
-                container.remove(force=True)
+                container.remove(force=True) # type: ignore
             except Exception as e:
                 logger.error(f"Failed to remove container: {e}")
 
+    return {"error": "Unexpected return path"}
+
 @app.task(name="app.tasks.perform_scan")
-def perform_scan(scan_task_id: str, target: str, scan_type: str, modules: list = None):
+def perform_scan(scan_task_id: str, target: str, scan_type: str, modules: list | None = None):
     logger.info(f"Starting scan for {target} with ID {scan_task_id} (Type: {scan_type}, Modules: {modules})")
     
     save_result(scan_task_id, "System", {"message": "Scan started"}, "RUNNING")
@@ -308,7 +327,7 @@ def run_visual_recon(task_id: str, target: str, target_url: str):
         try:
             task = db.query(ScanTask).filter(ScanTask.id == task_id).first()
             if task:
-                current_paths = task.screenshot_paths or {}
+                current_paths = dict(task.screenshot_paths or {})
                 current_paths["desktop"] = f"/scans/{filename}"  # Web accessible path
                 task.screenshot_paths = current_paths
                 db.commit()
@@ -322,9 +341,9 @@ def run_visual_recon(task_id: str, target: str, target_url: str):
         finally:
             db.close()
     else:
-        logger.error(f"Screenshot file not found at {file_path}")
-        save_result(task_id, "VisualRecon", {"error": "Screenshot failed"}, status="TOOL_FAILED")
-        return None
+            logger.error(f"Screenshot file not found at {file_path}")
+            save_result(task_id, "VisualRecon", {"error": "Screenshot failed"}, status="TOOL_FAILED")
+            return None
 
 def run_sherlock_scan(task_id: str, target: str):
     save_result(task_id, "UserHunter", {"message": "Searching social media accounts..."}, status="RUNNING")
@@ -488,7 +507,7 @@ def generate_ai_summary(task_id: str, target: str, results: dict):
 
             except:
                 # Fallback if model output isn't strict JSON
-                summary_text = content[:500] + "..."
+                summary_text = content[:500] + "..." if content else "Summary text."
                 score = "Medium" # Default
                 mitigation = []
                 if "High" in content or "Critical" in content: score = "High"
@@ -835,10 +854,9 @@ def generate_pdf_report(task_id: str, target: str, results: dict):
                  logger.error(f"DB Error update pdf path: {e}")
              finally:
                  db.close()
-             status = "TOOL_COMPLETED"
-             save_result(task_id, "ReportGenerator", {"pdf_url": f"/scans/{pdf_filename}"}, status=status)
+             save_result(task_id, "ReportGenerator", {"pdf_url": f"/scans/{pdf_filename}"}, status="TOOL_COMPLETED")
     else:
-             logger.error(f"PDF file not found after generation: {output}") # Output from chrome container
+             logger.error(f"PDF file not found after generation.") # Output from chrome container
              save_result(task_id, "ReportGenerator", {"error": "PDF generation failed"}, status="FAILED")
 
 @app.task(name="app.tasks.generate_report_task")
